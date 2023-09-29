@@ -22,7 +22,7 @@ class MyanimelistSpiderSpider(scrapy.Spider):
         all_anime = table.css('tr.ranking-list')
         
         for anime in all_anime:
-            anime_url = anime.css('td div.detail div h3 a  ::attr(href)').get()
+            anime_url = str(anime.css('td div.detail div h3 a  ::attr(href)').get()).strip()
             if anime_url is not None:
                 yield response.follow(url=anime_url, callback=self.parse_anime_page)
         
@@ -40,10 +40,10 @@ class MyanimelistSpiderSpider(scrapy.Spider):
         url = response.url
 
         resp_meta = {
-            'rank': row_table.css('td div.pb16 div.di-t div div div.di-ib span.ranked strong ::text').get().strip(),
-            'popularity': row_table.css('td div.pb16 div.di-t div div div.di-ib span.popularity strong ::text').get().strip(),
-            'name_en': response.css('div div div.h1 div.h1-title div h1.title-name strong ::text').get().strip(),
-            'name_jp': [key.get() for key in [key.css(' ::text') for key in row_table.css('td.borderClass div.leftside div.spaceit_pad') if key.css('span.dark_text ::text').get() == 'Japanese:'][0] if str(key.get()).strip() != '' and str(key.get()).strip() != ',' and str(key.get()).strip() != 'Japanese:'][0].strip(),
+            'rank': str(row_table.css('td div.pb16 div.di-t div div div.di-ib span.ranked strong ::text').get()).strip(),
+            'popularity': str(row_table.css('td div.pb16 div.di-t div div div.di-ib span.popularity strong ::text').get()).strip(),
+            'en_name': str(response.css('div div div.h1 div.h1-title div h1.title-name strong ::text').get()).strip(),
+            'jp_name': [key.get() for key in [key.css(' ::text') for key in row_table.css('td.borderClass div.leftside div.spaceit_pad') if key.css('span.dark_text ::text').get() == 'Japanese:'][0] if str(key.get()).strip() != '' and str(key.get()).strip() != ',' and str(key.get()).strip() != 'Japanese:'][0].strip(),
             'image': row_table.css('td.borderClass div.leftside div a img[itemprop="image"]::attr(data-src)').get().strip(),
             'description': [des.get() for des in  row_table.css('td div table tr td p[itemprop="description"]::text')],
             'genre': [genre.css('::text').get() for genre in row_table.css('td.borderClass div.leftside div span[itemprop="genre"]')],
@@ -57,10 +57,11 @@ class MyanimelistSpiderSpider(scrapy.Spider):
             'scurce': [key.css(' ::text')[-1].get() for key in row_table.css('td.borderClass div.leftside div.spaceit_pad') if key.css('span.dark_text ::text').get() == 'Source:'],
             'scored_by': [key.css(' ::text')[6].get() for key in row_table.css('td.borderClass div.leftside div.spaceit_pad') if key.css('span.dark_text ::text').get() == 'Score:'],
             'studios': [key.get() for key in [key.css(' ::text') for key in row_table.css('td.borderClass div.leftside div.spaceit_pad') if key.css('span.dark_text ::text').get() == 'Studios:'][0] if str(key.get()).strip() != '' and str(key.get()).strip() != ',' and str(key.get()).strip() != 'Studios:'],
-            'url': url.strip()
+            'url': str(url).strip()
             }
 
-        reviews_page_url = f'{url}/reviews'
+        # go to reviews
+        reviews_page_url = f'{url}/reviews&spoiler=on'
         yield response.follow(url=reviews_page_url, callback=self.parse_get_reviews, meta=resp_meta)
     
 
@@ -73,12 +74,12 @@ class MyanimelistSpiderSpider(scrapy.Spider):
         for review_data in reviews_data:
 
             resp_review_data = {
-                'username': review_data.css('div.body div.username a::text').get().strip(),
-                'user_img': review_data.css('div.thumb a img::attr(src)').get().strip(),
-                'user_link': review_data.css('div.body div.username a::attr(href)').get().strip(),
+                'username': str(review_data.css('div.body div.username a::text').get()).strip(),
+                'user_img': str(review_data.css('div.thumb a img::attr(src)').get()).strip(),
+                'user_link': str(review_data.css('div.body div.username a::attr(href)').get()).strip(),
                 'review_text': ''.join(review_data.css('div.body div.text').getall()).strip(),
-                'tag': review_data.css('div.body div.tags div::text').get().strip(),
-                'reviewers_rating': review_data.css('div.body div[class="rating mt20 mb20 js-hidden"] span.num ::text').get().strip(),
+                'tag': str(review_data.css('div.body div.tags div::text').get()).strip(),
+                'reviewers_rating': str(review_data.css('div.body div[class="rating mt20 mb20 js-hidden"] span.num ::text').get()).strip(),
                 'reactions': [(reaction.css('::text').get(), reaction.css('span.num ::text').get(), reaction.css('img::attr(src)').get()) for reaction in review_data.css('div.body div.reaction-box div')],
             }
             
@@ -88,16 +89,19 @@ class MyanimelistSpiderSpider(scrapy.Spider):
             **response.request.meta,
             'reviews': reviews
         }
-        try:
-            characters_and_voice_actors_page_url = f'{response.request.meta["url"]}/characters'
-            yield response.follow(url=characters_and_voice_actors_page_url, callback=self.parse_get_characters_and_voice_actors, meta=resp_meta)
-        except:
-            print(f'!!!!None Data\n{response.request.meta}\n\n')
 
         # next reviews page
         next_reviews_page = response.css('div[id="contentWrapper"] div[id="content"] table tr td[valign="top"] div.mt4 div[class="ml4 mb8"] a ::attr(href)').get()
         if next_reviews_page is not None:
-             response.follow(url=next_reviews_page, callback=self.parse_get_reviews)
+            yield response.follow(url=next_reviews_page, callback=self.parse_get_reviews)
+        
+        else:
+            # go to characters and voice actors
+            try:
+                characters_and_voice_actors_page_url = f'{response.request.meta["url"]}/characters'
+                yield response.follow(url=characters_and_voice_actors_page_url, callback=self.parse_get_characters_and_voice_actors, meta=resp_meta)
+            except:
+                print(f'*************!!!!None Data**************\n\n{characters_and_voice_actors_page_url}\n\n{response.request.meta}\n\n')
 
 
     # get all anime characters and voice actors
@@ -141,22 +145,22 @@ class MyanimelistSpiderSpider(scrapy.Spider):
                 voice_actors_data_list = []
                 for idx, voice_actor in enumerate(voice_actors_data):
                     voice_actor_data = {
-                        'name': voice_actor.css('tr td.borderClass a::text').get().strip(),
-                        'image': voice_actor.css('tr td div.picSurround a img::attr(data-src)').get().strip(),
-                        'country': voice_actor.css('tr td.borderClass div small::text').get().strip(),
+                        'name': str(voice_actor.css('tr td.borderClass a::text').get()).strip(),
+                        'image': str(voice_actor.css('tr td div.picSurround a img::attr(data-src)').get()).strip(),
+                        'country': str(voice_actor.css('tr td.borderClass div small::text').get()).strip(),
                         }
                     voice_actors_data_list.append(voice_actor_data)
 
                 # all character information
                 char = {
-                    'image': response.css('table tr td.borderClass div a img::attr(data-src)').get().strip(),
-                    'en_name': response.css('table tr td[valign="top"] h2.normal_header::text').get().strip(),
-                    'jp_name': response.css('table tr td[valign="top"] h2.normal_header span small::text').get().strip(),
+                    'image': str(response.css('table tr td.borderClass div a img::attr(data-src)').get()).strip(),
+                    'en_name': str(response.css('table tr td[valign="top"] h2.normal_header::text').get()).strip(),
+                    'jp_name': str(response.css('table tr td[valign="top"] h2.normal_header span small::text').get()).strip(),
                     **char_information_dict,
                     'voice_actors': voice_actors_data_list,
                     }
                 
-                resp_meta['characters_information'].append({response.css('table tr td[valign="top"] h2.normal_header::text').get(): char})
+                resp_meta['characters_information'].append({str(response.css('table tr td[valign="top"] h2.normal_header::text').get()).strip(): char})
 
         yield response.follow(url='None', callback=self.parse_combine_data, meta=resp_meta)
 
@@ -168,7 +172,8 @@ class MyanimelistSpiderSpider(scrapy.Spider):
         anime_item = MyanimelistScraperItem()
         anime_item['rank'] = response.request.meta['rank']
         anime_item['popularity'] = response.request.meta['popularity']
-        anime_item['name'] = response.request.meta['name']
+        anime_item['en_name'] = response.request.meta['name_en']
+        anime_item['jp_name'] = response.request.meta['name_jp']
         anime_item['image'] = response.request.meta['image']
         anime_item['description'] = response.request.meta['description']
         anime_item['genre'] = response.request.meta['genre']
