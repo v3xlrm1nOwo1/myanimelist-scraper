@@ -172,8 +172,8 @@ class MyanimelistSpiderSpider(scrapy.Spider):
         anime_item = MyanimelistScraperItem()
         anime_item['rank'] = response.request.meta['rank']
         anime_item['popularity'] = response.request.meta['popularity']
-        anime_item['en_name'] = response.request.meta['name_en']
-        anime_item['jp_name'] = response.request.meta['name_jp']
+        anime_item['en_name'] = response.request.meta['en_name']
+        anime_item['jp_name'] = response.request.meta['jp_name']
         anime_item['image'] = response.request.meta['image']
         anime_item['description'] = response.request.meta['description']
         anime_item['genre'] = response.request.meta['genre']
