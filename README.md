@@ -298,7 +298,7 @@ custom_settings = {
 
 # Don't Forget to Put a Star 🌟
 
-## Star History:
+## Star History
 
 <a href="https://star-history.com/#v3xlrm1nOwo1/myanimelist_scraping&Date">
   <picture>
@@ -307,4 +307,5 @@ custom_settings = {
     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=v3xlrm1nOwo1/myanimelist_scraping&type=Date" />
   </picture>
 </a>
+
 
